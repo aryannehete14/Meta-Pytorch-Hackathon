@@ -1,0 +1,82 @@
+name: incident-response-triage
+version: "1.0.0"
+description: >
+  An OpenEnv environment simulating real-world SRE incident response triage.
+  An AI agent receives production alerts, logs, and metrics and must identify
+  root causes, filter noise alerts, escalate to the correct team, and draft
+  a concise incident summary. Rewards partial progress across four dimensions.
+
+author: hackathon-submission
+tags:
+  - openenv
+  - sre
+  - incident-response
+  - devops
+  - real-world
+
+tasks:
+  - id: task1_easy
+    difficulty: easy
+    description: >
+      Single service outage — payment-service cannot connect to PostgreSQL.
+      Logs clearly show the root cause. One noise alert to filter.
+      Agent must escalate to payments-team.
+    max_steps: 5
+    reward_threshold: 0.8
+
+  - id: task2_medium
+    difficulty: medium
+    description: >
+      Cascading failure — auth-service Redis connection failure causes downstream
+      order-service and notification-service to fail. Multiple noise alerts.
+      Agent must identify the upstream root cause and escalate to platform-team.
+    max_steps: 5
+    reward_threshold: 0.7
+
+  - id: task3_hard
+    difficulty: hard
+    description: >
+      Partial degradation — recommendation-service JVM memory leak causes GC pressure
+      that cascades into checkout latency. No explicit errors — only warnings and
+      unusual patterns across 4+ signals. Recent deployment history is a key clue.
+      Agent must distinguish partial degradation from full outage.
+    max_steps: 5
+    reward_threshold: 0.6
+
+observation_space:
+  type: object
+  fields:
+    task_id: string
+    step: integer
+    alerts: "list[Alert]"
+    logs: "list[LogEntry]"
+    metrics: "list[Metric]"
+    context: object
+    prompt: string
+
+action_space:
+  type: object
+  fields:
+    root_cause: string
+    silenced_alert_ids: "list[string]"
+    escalate_to: "string | null"
+    incident_summary: string
+    severity_assessment: "enum[low, medium, high, critical]"
+    proposed_fix: "string | null"
+
+reward_space:
+  type: object
+  range: [0.0, 1.0]
+  components:
+    root_cause_score: "weight 0.35 — correctness of identified root cause"
+    noise_filtering_score: "weight 0.20 — correctly silenced noise alerts"
+    escalation_score: "weight 0.25 — correct team/person escalated to"
+    summary_score: "weight 0.20 — quality and accuracy of incident summary"
+    penalty: "up to -0.30 for false positives, missed escalation, wrong severity"
+
+api:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  tasks: GET /tasks
+  health: GET /health
